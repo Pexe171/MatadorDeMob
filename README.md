@@ -1,32 +1,33 @@
 # Matador
 
-Client-side Fabric 26.1.1 mod with a visual Mob Hunter panel.
+Mod Fabric client-side para Minecraft 26.1.1 com um painel visual de caça a mobs.
 
-## Requirements
+## Requisitos
 
 - Minecraft 26.1.1
 - Fabric Loader 0.19.x
-- Fabric API 0.145.1 or newer for 26.1.x
+- Fabric API 0.145.1 ou mais recente para 26.1.x
 - Java 25
-- Gradle, or import the project in an IDE that can run Gradle
+- Gradle, ou uma IDE que consiga importar e executar projetos Gradle
 
-## Usage
+## Como Usar
 
-- Press `J` in game to open the `Mob Hunter` panel.
-- Select the target mob using the visual spawn egg cards.
-- Toggle the bot with `Ativar` / `Desativar`.
-- Adjust search radius, attack distance, and attack delay from the panel.
+- Pressione `J` dentro do jogo para abrir o painel `Mob Hunter`.
+- Selecione o mob alvo usando os cards visuais com ovos de spawn.
+- Ative ou desative o caçador pelo botão `Ativar` / `Desativar`.
+- Ajuste o raio de busca, a distância de ataque e o atraso entre ataques pelo painel.
+- No modo `Um clique`, o mod bate uma vez no mob atual e aguarda esse mob morrer ou sumir antes de buscar o próximo.
 
-## Build
+## Compilar
 
 ```bash
 gradlew.bat build
 ```
 
-If Windows still points to Java 8, use the local portable JDK installed with this project:
+Se o Windows ainda estiver apontando para Java 8, use o script local configurado para o JDK instalado neste ambiente:
 
 ```bash
 build-local.bat
 ```
 
-The built jar will be generated under `build/libs/`.
+O arquivo `.jar` compilado será gerado em `build/libs/`.

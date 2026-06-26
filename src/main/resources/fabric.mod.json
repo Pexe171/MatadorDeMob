@@ -3,7 +3,7 @@
 	"id": "matador",
 	"version": "${version}",
 	"name": "Matador",
-	"description": "Mob Hunter client panel with visual mob selection.",
+	"description": "Painel client-side para caçar mobs com seleção visual.",
 	"authors": [
 		"Matador"
 	],
