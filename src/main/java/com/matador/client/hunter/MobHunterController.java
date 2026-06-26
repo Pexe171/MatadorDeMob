@@ -35,12 +35,18 @@ public class MobHunterController {
     private int attackCooldownTicks;
     private boolean controllingMovement;
     private int oneClickTargetId = -1;
+    private int ticksSinceLastTargetChange = 0; // Previne ataques instantâneos ao trocar de alvo
 
     // Variáveis para suavização da mira (Smooth Aiming)
     private float currentYaw;
     private float currentPitch;
     private float targetYaw;
     private float targetPitch;
+
+    // Offsets fixos gerados ao trocar de alvo para evitar Jittering (tremedeira detectável pelo anti-cheat)
+    private double targetOffsetX;
+    private double targetOffsetY;
+    private double targetOffsetZ;
 
     private MobHunterController() {
         this.config = MobHunterConfig.load();
@@ -62,6 +68,8 @@ public class MobHunterController {
         if (attackCooldownTicks > 0) {
             attackCooldownTicks--;
         }
+
+        ticksSinceLastTargetChange++;
 
         if (client.level == null || client.player == null) {
             stopMoving(client);
@@ -99,20 +107,26 @@ public class MobHunterController {
 
         stopMoving(client);
 
-        if (attackCooldownTicks <= 0) {
-            // Aplica uma ligeira aleatoriedade à distância de ataque para evitar bater sempre no limite exato
-            if (distance <= config.attackDistance - (random.nextDouble() * 0.5)) {
-                 client.gameMode.attack(client.player, currentTarget);
-                 client.player.swing(InteractionHand.MAIN_HAND);
+        // Só ataca se tiver terminado o cooldown e se a mira estiver repousada após a troca de alvo (mínimo 3 ticks)
+        if (attackCooldownTicks <= 0 && ticksSinceLastTargetChange > 3) {
+            // Aplica uma ligeira aleatoriedade à distância de ataque
+            if (distance <= config.attackDistance - (random.nextDouble() * 0.3)) {
                  
-                 // Aleatorizar ligeiramente o atraso do ataque (Randomize attack delay slightly)
-                 int delayVariation = random.nextInt(5) - 2; // Variação de -2 a +2 ticks
-                 attackCooldownTicks = Math.max(1, config.attackDelayTicks + delayVariation);
+                 // SÓ ATACA SE A MIRA ESTIVER NO ALVO. Tolerância de 15 graus. 
+                 // (Evita kicks do Vulcan por atacar entidades fora da retícula / KillAura flag)
+                 if (isAimingAtTarget(targetYaw, targetPitch, currentYaw, currentPitch, 15.0F)) {
+                     client.gameMode.attack(client.player, currentTarget);
+                     client.player.swing(InteractionHand.MAIN_HAND);
+                     
+                     // Aleatorizar ligeiramente o atraso do ataque
+                     int delayVariation = random.nextInt(5) - 2; // Variação de -2 a +2 ticks
+                     attackCooldownTicks = Math.max(1, config.attackDelayTicks + delayVariation);
 
-                 LivingEntity hitTarget = currentTarget;
-                 logMob(hitTarget, config.oneClickMode ? "HIT_ONCE_WAIT" : "ATTACK", distance);
-                 if (config.oneClickMode) {
-                     oneClickTargetId = hitTarget.getId();
+                     LivingEntity hitTarget = currentTarget;
+                     logMob(hitTarget, config.oneClickMode ? "HIT_ONCE_WAIT" : "ATTACK", distance);
+                     if (config.oneClickMode) {
+                         oneClickTargetId = hitTarget.getId();
+                     }
                  }
             }
         }
@@ -144,6 +158,7 @@ public class MobHunterController {
 
     public void clearTarget() {
         currentTarget = null;
+        ticksSinceLastTargetChange = 0;
     }
 
     public void refreshTarget(Minecraft client) {
@@ -193,9 +208,18 @@ public class MobHunterController {
         // Atualizar o alvo apenas se ele mudou para evitar reiniciar o smooth aim
         if (currentTarget != nearest) {
             currentTarget = nearest;
+            ticksSinceLastTargetChange = 0; // Reset ao trocar de alvo
+            
             if (client.player != null) {
                 currentYaw = client.player.getYRot();
                 currentPitch = client.player.getXRot();
+            }
+            
+            // Define os offsets de forma randômica APENAS ao trocar de alvo (evita tremedeira da mira)
+            if (nearest != null) {
+                targetOffsetX = (random.nextDouble() - 0.5) * 0.4;
+                targetOffsetY = random.nextDouble() * 0.3; // Um pouco mais focado perto do meio
+                targetOffsetZ = (random.nextDouble() - 0.5) * 0.4;
             }
         }
     }
@@ -284,24 +308,22 @@ public class MobHunterController {
             return;
         }
 
-        // Adicionar algum ruído (noise) à posição do alvo para parecer humano
-        double noiseX = (random.nextDouble() - 0.5) * 0.4;
-        double noiseY = (random.nextDouble() - 0.5) * 0.4;
-        double noiseZ = (random.nextDouble() - 0.5) * 0.4;
-
-        double dx = (currentTarget.getX() + noiseX) - client.player.getX();
-        double dz = (currentTarget.getZ() + noiseZ) - client.player.getZ();
+        double dx = (currentTarget.getX() + targetOffsetX) - client.player.getX();
+        double dz = (currentTarget.getZ() + targetOffsetZ) - client.player.getZ();
         
-        // Apontar de forma ligeiramente aleatória para a zona do corpo/cabeça
-        double dy = (currentTarget.getY() + (currentTarget.getBbHeight() * (0.5 + random.nextDouble() * 0.4)) + noiseY) - client.player.getEyeY();
+        // Apontar de forma ligeiramente aleatória para a zona do corpo/cabeça mantendo o ruído fixo
+        double dy = (currentTarget.getY() + (currentTarget.getBbHeight() * 0.5) + targetOffsetY) - client.player.getEyeY();
 
         double horizontalDistance = Math.sqrt(dx * dx + dz * dz);
         
         targetYaw = (float) Math.toDegrees(Math.atan2(dz, dx)) - 90.0F;
         targetPitch = (float) -Math.toDegrees(Math.atan2(dy, horizontalDistance));
 
-        // Velocidade de interpolação (menor é mais suave/lento)
-        float aimSpeed = 0.25f + (random.nextFloat() * 0.1f); 
+        // Limita o pitch para não virar a cabeça além do limite humano possível (<-90 ou >90 causará kick)
+        targetPitch = Math.max(-90.0F, Math.min(90.0F, targetPitch));
+
+        // Velocidade de interpolação
+        float aimSpeed = 0.20f + (random.nextFloat() * 0.1f); 
 
         currentYaw = lerpAngle(currentYaw, targetYaw, aimSpeed);
         currentPitch = lerp(currentPitch, targetPitch, aimSpeed);
@@ -319,6 +341,17 @@ public class MobHunterController {
         while (difference < -180.0F) difference += 360.0F;
         while (difference >= 180.0F) difference -= 360.0F;
         return start + delta * difference;
+    }
+
+    // Checa se a mira já está perto o suficiente do alvo (evita ataque de killaura)
+    private boolean isAimingAtTarget(float tYaw, float tPitch, float cYaw, float cPitch, float tolerance) {
+        float yawDiff = Math.abs(tYaw - cYaw) % 360.0F;
+        if (yawDiff > 180.0F) {
+            yawDiff = 360.0F - yawDiff;
+        }
+        float pitchDiff = Math.abs(tPitch - cPitch);
+        
+        return yawDiff <= tolerance && pitchDiff <= tolerance;
     }
 
     private boolean isValidWaitingTarget(Minecraft client) {
