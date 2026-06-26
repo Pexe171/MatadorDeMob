@@ -3,7 +3,7 @@
 	"id": "matador",
 	"version": "${version}",
 	"name": "Matador",
-	"description": "Painel client-side para caçar mobs com seleção visual.",
+	"description": "Painel do lado do cliente para caçar mobs com seleção visual.",
 	"authors": [
 		"Matador"
 	],

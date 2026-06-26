@@ -1,6 +1,6 @@
 # Matador
 
-Mod Fabric client-side para Minecraft 26.1.1 com um painel visual de caça a mobs.
+Mod Fabric do lado do cliente para Minecraft 26.1.1 com um painel visual de caça a mobs.
 
 ## Requisitos
 
@@ -12,7 +12,7 @@ Mod Fabric client-side para Minecraft 26.1.1 com um painel visual de caça a mob
 
 ## Como Usar
 
-- Pressione `J` dentro do jogo para abrir o painel `Mob Hunter`.
+- Pressione `J` dentro do jogo para abrir o painel `Caçador de Mobs`.
 - Selecione o mob alvo usando os cards visuais com ovos de spawn.
 - Ative ou desative o caçador pelo botão `Ativar` / `Desativar`.
 - Ajuste o raio de busca, a distância de ataque e o atraso entre ataques pelo painel.

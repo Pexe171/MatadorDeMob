@@ -45,7 +45,7 @@ public class MobHunterScreen extends Screen {
 	private int infoY;
 
 	public MobHunterScreen(MobHunterController controller) {
-		super(Component.literal("Mob Hunter"));
+		super(Component.literal("Caçador de Mobs"));
 		this.controller = controller;
 	}
 
@@ -144,7 +144,7 @@ public class MobHunterScreen extends Screen {
 	}
 
 	private void drawHeader(GuiGraphicsExtractor context) {
-		drawText(context, "Mob Hunter", panelX + 18, panelY + 18, TEXT);
+		drawText(context, "Caçador de Mobs", panelX + 18, panelY + 18, TEXT);
 
 		boolean enabled = controller.getConfig().enabled;
 		String status = enabled ? "Status: ON" : "Status: OFF";
@@ -185,8 +185,8 @@ public class MobHunterScreen extends Screen {
 		drawText(context, "Configuracoes", settingsX + 8, settingsY + 8, TEXT);
 
 		drawSettingRow(context, "Raio de busca", formatOneDecimal(config.searchRadius), settingsY + 32);
-		drawSettingRow(context, "Distancia ataque", formatOneDecimal(config.attackDistance), settingsY + 58);
-		drawSettingRow(context, "Delay ataque", config.attackDelayTicks + " ticks", settingsY + 84);
+		drawSettingRow(context, "Distância ataque", formatOneDecimal(config.attackDistance), settingsY + 58);
+		drawSettingRow(context, "Atraso ataque", config.attackDelayTicks + " ticks", settingsY + 84);
 	}
 
 	private void drawInfo(GuiGraphicsExtractor context) {
@@ -225,7 +225,7 @@ public class MobHunterScreen extends Screen {
 				context.itemDecorations(font, icon, x, y);
 			}
 		} catch (RuntimeException exception) {
-			// Item components can be unavailable during early client frames on this runtime.
+			// Componentes de item podem ficar indisponíveis nos primeiros frames do cliente.
 		}
 	}
 

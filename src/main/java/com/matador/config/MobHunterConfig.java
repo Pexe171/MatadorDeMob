@@ -35,7 +35,7 @@ public class MobHunterConfig {
 					return config;
 				}
 			} catch (IOException ignored) {
-				// Fall through to a default config if the file cannot be read.
+				// Usa a configuração padrão se o arquivo não puder ser lido.
 			}
 		}
 
@@ -53,7 +53,7 @@ public class MobHunterConfig {
 				GSON.toJson(this, writer);
 			}
 		} catch (IOException ignored) {
-			// Client mods should not crash the game because a config write failed.
+			// Mods do lado do cliente não devem fechar o jogo por falha ao salvar configuração.
 		}
 	}
 

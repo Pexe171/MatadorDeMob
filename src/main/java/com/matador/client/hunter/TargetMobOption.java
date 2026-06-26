@@ -41,31 +41,31 @@ public class TargetMobOption {
 			options = Collections.unmodifiableList(Arrays.asList(
 				new TargetMobOption(
 					"minecraft:rabbit",
-					"Rabbit",
+					"Coelho",
 					EntityType.RABBIT,
 					() -> Items.RABBIT_SPAWN_EGG
 				),
 				new TargetMobOption(
 					"minecraft:chicken",
-					"Chicken",
+					"Galinha",
 					EntityType.CHICKEN,
 					() -> Items.CHICKEN_SPAWN_EGG
 				),
 				new TargetMobOption(
 					"minecraft:cow",
-					"Cow",
+					"Vaca",
 					EntityType.COW,
 					() -> Items.COW_SPAWN_EGG
 				),
 				new TargetMobOption(
 					"minecraft:sheep",
-					"Sheep",
+					"Ovelha",
 					EntityType.SHEEP,
 					() -> Items.SHEEP_SPAWN_EGG
 				),
 				new TargetMobOption(
 					"minecraft:pig",
-					"Pig",
+					"Porco",
 					EntityType.PIG,
 					() -> Items.PIG_SPAWN_EGG
 				)
