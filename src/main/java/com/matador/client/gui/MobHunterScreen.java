@@ -16,19 +16,23 @@ import java.util.List;
 import java.util.Locale;
 
 public class MobHunterScreen extends Screen {
-	private static final int PANEL_BG = 0xE6101420;
-	private static final int PANEL_BORDER = 0xFF3D4E68;
-	private static final int PANEL_SOFT = 0xCC182132;
-	private static final int CARD_BG = 0xDD1C2635;
-	private static final int CARD_HOVER = 0xEE27364A;
-	private static final int CARD_SELECTED = 0xEE1F433D;
-	private static final int CARD_BORDER = 0xFF46566E;
-	private static final int ACCENT = 0xFF51D6C1;
-	private static final int WARNING = 0xFFFFC857;
-	private static final int TEXT = 0xFFEAF2FF;
-	private static final int MUTED = 0xFF9DAEC5;
-	private static final int DANGER = 0xFFFF6B6B;
-	private static final int GOOD = 0xFF6EE787;
+	// Paleta de cores moderna (inspirada em Catppuccin Mocha)
+	private static final int PANEL_BG = 0xFA1E1E2E;
+	private static final int PANEL_HEADER = 0xFA181825;
+	private static final int PANEL_BORDER = 0xFF313244;
+	private static final int PANEL_SOFT = 0xAA181825;
+	
+	private static final int CARD_BG = 0xDD313244;
+	private static final int CARD_HOVER = 0xFF45475A;
+	private static final int CARD_SELECTED = 0xFF89B4FA; // Azul vibrante
+	private static final int CARD_BORDER = 0xFF45475A;
+	
+	private static final int ACCENT = 0xFF89B4FA; // Azul
+	private static final int WARNING = 0xFFF9E2AF; // Amarelo
+	private static final int TEXT = 0xFFCDD6F4; // Texto principal
+	private static final int MUTED = 0xFFA6ADC8; // Texto secundário
+	private static final int DANGER = 0xFFF38BA8; // Vermelho
+	private static final int GOOD = 0xFFA6E3A1; // Verde pastel
 
 	private final MobHunterController controller;
 	private final List<MobCard> mobCards = new ArrayList<>();
@@ -43,36 +47,66 @@ public class MobHunterScreen extends Screen {
 	private int valueX;
 	private int infoX;
 	private int infoY;
+	
+	// Controle de animação de entrada
+	private long initTime;
 
 	public MobHunterScreen(MobHunterController controller) {
-		super(Component.literal("Caçador de Mobs"));
+		super(Component.literal("Mob Hunter"));
 		this.controller = controller;
 	}
 
 	@Override
 	protected void init() {
+		this.initTime = System.currentTimeMillis();
 		rebuildLayout();
 	}
 
 	@Override
 	public void extractRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
-		context.fill(0, 0, width, height, 0x99000000);
+		// Fundo translúcido do jogo
+		context.fill(0, 0, width, height, 0x88000000);
+		
 		rebuildLayout();
 		controller.refreshTarget(Minecraft.getInstance());
 
-		drawPanel(context);
-		drawHeader(context);
-		drawMobCards(context, mouseX, mouseY);
-		drawSettings(context);
-		drawInfo(context);
-		drawActionButtons(context, mouseX, mouseY);
+		// Calcula a animação de deslizar (slide-up) e opacidade
+		float openAnim = Math.min(1f, (System.currentTimeMillis() - initTime) / 350f);
+		float easeOutQuart = 1f - (float)Math.pow(1f - openAnim, 4);
+		int animOffsetY = (int)((1f - easeOutQuart) * 40); // Sobe 40 pixels suavemente
+
+		// Atualiza o estado de hover com base na posição do mouse ajustada pela animação
+		int adjustedMouseY = mouseY - animOffsetY;
+		updateHovers(mouseX, adjustedMouseY);
+
+		drawPanel(context, animOffsetY);
+		drawHeader(context, animOffsetY);
+		drawMobCards(context, animOffsetY);
+		drawSettings(context, animOffsetY);
+		drawInfo(context, animOffsetY);
+		drawActionButtons(context, animOffsetY);
+	}
+
+	private void updateHovers(int mouseX, int mouseY) {
+		for (MobCard card : mobCards) {
+			card.updateHover(card.contains(mouseX, mouseY));
+		}
+		for (ActionButton btn : actionButtons) {
+			btn.updateHover(btn.contains(mouseX, mouseY));
+		}
 	}
 
 	@Override
 	public boolean mouseClicked(MouseButtonEvent click, boolean doubled) {
 		if (click.button() == InputConstants.MOUSE_BUTTON_LEFT) {
+			// Ajusta o clique caso a animação de entrada ainda esteja rodando
+			float openAnim = Math.min(1f, (System.currentTimeMillis() - initTime) / 350f);
+			float easeOut = 1f - (float)Math.pow(1f - openAnim, 4);
+			int animOffsetY = (int)((1f - easeOut) * 40);
+			
 			double mouseX = click.x();
-			double mouseY = click.y();
+			double mouseY = click.y() - animOffsetY;
+
 			for (MobCard card : mobCards) {
 				if (card.contains(mouseX, mouseY)) {
 					controller.setTargetMob(card.option, Minecraft.getInstance());
@@ -97,124 +131,167 @@ public class MobHunterScreen extends Screen {
 	}
 
 	private void rebuildLayout() {
-		panelWidth = Math.min(620, Math.max(320, width - 24));
-		panelHeight = Math.min(382, Math.max(300, height - 24));
+		panelWidth = Math.min(620, Math.max(340, width - 24));
+		panelHeight = Math.min(400, Math.max(300, height - 24));
 		panelX = (width - panelWidth) / 2;
 		panelY = (height - panelHeight) / 2;
 
 		boolean wide = panelWidth >= 560;
-		int sidePadding = 18;
-		int top = panelY + 62;
+		int sidePadding = 20;
+		int top = panelY + 68;
 		int gridWidth = wide ? panelWidth - 270 : panelWidth - sidePadding * 2;
 		int columns = gridWidth >= 300 ? 2 : 1;
-		int cardGap = 8;
+		int cardGap = 10;
 		int cardWidth = (gridWidth - cardGap * (columns - 1)) / columns;
-		int cardHeight = 42;
+		int cardHeight = 44;
 		List<TargetMobOption> options = TargetMobOption.options();
 
-		mobCards.clear();
+		// Apenas recria os cartões se a quantidade mudou para não perder as animações de hover
+		if (mobCards.size() != options.size()) {
+			mobCards.clear();
+			for (TargetMobOption option : options) {
+				mobCards.add(new MobCard(option, 0, 0, 0, 0));
+			}
+		}
+
 		for (int index = 0; index < options.size(); index++) {
 			int column = index % columns;
 			int row = index / columns;
 			int x = panelX + sidePadding + column * (cardWidth + cardGap);
 			int y = top + row * (cardHeight + cardGap);
-			mobCards.add(new MobCard(options.get(index), x, y, cardWidth, cardHeight));
+			MobCard card = mobCards.get(index);
+			card.x = x; card.y = y; card.width = cardWidth; card.height = cardHeight;
 		}
 
 		int rows = (int) Math.ceil(options.size() / (double) columns);
 		settingsX = panelX + sidePadding;
-		settingsY = top + rows * (cardHeight + cardGap) + 12;
-		valueX = settingsX + 126;
+		settingsY = top + rows * (cardHeight + cardGap) + 16;
+		valueX = settingsX + 130;
 
 		if (wide) {
-			infoX = panelX + panelWidth - 232;
+			infoX = panelX + panelWidth - 240;
 			infoY = top;
 		} else {
 			infoX = settingsX;
-			infoY = settingsY + 112;
+			infoY = settingsY + 116;
 		}
 
 		rebuildActionButtons();
 	}
 
-	private void drawPanel(GuiGraphicsExtractor context) {
-		context.fill(panelX, panelY, panelX + panelWidth, panelY + panelHeight, PANEL_BG);
-		drawBorder(context, panelX, panelY, panelWidth, panelHeight, PANEL_BORDER);
-		context.fill(panelX + 1, panelY + 1, panelX + panelWidth - 1, panelY + 42, 0xB81B2737);
+	private void drawPanel(GuiGraphicsExtractor context, int offsetY) {
+		int y = panelY + offsetY;
+		
+		// Sombra sutil / Borda exterior
+		drawBorder(context, panelX - 1, y - 1, panelWidth + 2, panelHeight + 2, 0x44000000);
+		
+		// Fundo Principal
+		context.fill(panelX, y, panelX + panelWidth, y + panelHeight, PANEL_BG);
+		drawBorder(context, panelX, y, panelWidth, panelHeight, PANEL_BORDER);
+		
+		// Cabeçalho destacado
+		context.fill(panelX + 1, y + 1, panelX + panelWidth - 1, y + 50, PANEL_HEADER);
+		context.fill(panelX + 1, y + 50, panelX + panelWidth - 1, y + 51, PANEL_BORDER);
 	}
 
-	private void drawHeader(GuiGraphicsExtractor context) {
-		drawText(context, "Caçador de Mobs", panelX + 18, panelY + 18, TEXT);
+	private void drawHeader(GuiGraphicsExtractor context, int offsetY) {
+		int y = panelY + offsetY;
+		drawText(context, "Mob Hunter", panelX + 20, y + 15, TEXT, true);
 
 		boolean enabled = controller.getConfig().enabled;
-		String status = enabled ? "Status: ON" : "Status: OFF";
+		String status = enabled ? "Sistema Ativo" : "Sistema Inativo";
 		int statusColor = enabled ? GOOD : DANGER;
-		drawText(context, status, panelX + 18, panelY + 34, statusColor);
+		
+		// Bolinha de status
+		context.fill(panelX + 20, y + 33, panelX + 25, y + 38, statusColor);
+		drawText(context, status, panelX + 32, y + 32, statusColor, false);
 	}
 
-	private void drawMobCards(GuiGraphicsExtractor context, int mouseX, int mouseY) {
-		drawText(context, "Mobs disponiveis", panelX + 18, panelY + 50, MUTED);
+	private void drawMobCards(GuiGraphicsExtractor context, int offsetY) {
+		drawText(context, "Selecione o Alvo", panelX + 20, panelY + offsetY + 56, MUTED, false);
 
 		for (MobCard card : mobCards) {
 			boolean selected = card.option.entityId.equals(controller.getConfig().targetMobId);
-			boolean hovered = card.contains(mouseX, mouseY);
-			int bg = selected ? CARD_SELECTED : hovered ? CARD_HOVER : CARD_BG;
-			int border = selected ? ACCENT : hovered ? WARNING : CARD_BORDER;
+			int cardY = card.y + offsetY;
+			
+			// Cor base interpolada suavemente com a cor de hover
+			int baseBg = selected ? 0xFF3B4252 : CARD_BG; // Fundo levemente diferente se selecionado
+			int currentBg = lerpColor(baseBg, CARD_HOVER, card.hoverAnim);
+			int currentBorder = selected ? ACCENT : lerpColor(CARD_BORDER, WARNING, card.hoverAnim);
 
-			context.fill(card.x, card.y, card.x + card.width, card.y + card.height, bg);
-			drawBorder(context, card.x, card.y, card.width, card.height, border);
+			context.fill(card.x, cardY, card.x + card.width, cardY + card.height, currentBg);
+			drawBorder(context, card.x, cardY, card.width, card.height, currentBorder);
 
+			// Indicador lateral do selecionado
 			if (selected) {
-				context.fill(card.x + 2, card.y + 2, card.x + 5, card.y + card.height - 2, ACCENT);
+				context.fill(card.x + 1, cardY + 1, card.x + 4, cardY + card.height - 1, ACCENT);
 			}
 
-			int iconX = card.x + 12;
-			int iconY = card.y + 13;
+			int iconX = card.x + 14;
+			int iconY = cardY + 14;
 			drawMobIcon(context, card.option, iconX, iconY);
 
-			int nameColor = selected ? 0xFFFFFFFF : TEXT;
-			drawText(context, card.option.displayName, card.x + 36, card.y + 12, nameColor);
+			int nameColor = selected ? 0xFFFFFFFF : lerpColor(TEXT, 0xFFFFFFFF, card.hoverAnim);
+			drawText(context, card.option.displayName, card.x + 40, cardY + 14, nameColor, selected);
 		}
 	}
 
-	private void drawSettings(GuiGraphicsExtractor context) {
+	private void drawSettings(GuiGraphicsExtractor context, int offsetY) {
 		MobHunterConfig config = controller.getConfig();
+		int y = settingsY + offsetY;
 
-		context.fill(settingsX - 2, settingsY, settingsX + Math.min(310, panelWidth - 36), settingsY + 104, PANEL_SOFT);
-		drawBorder(context, settingsX - 2, settingsY, Math.min(312, panelWidth - 36), 104, 0xFF29384C);
-		drawText(context, "Configuracoes", settingsX + 8, settingsY + 8, TEXT);
+		context.fill(settingsX - 4, y, settingsX + Math.min(310, panelWidth - 40), y + 104, PANEL_SOFT);
+		drawBorder(context, settingsX - 4, y, Math.min(314, panelWidth - 40), 104, PANEL_BORDER);
+		
+		drawText(context, "Ajustes de Combate", settingsX + 10, y + 10, TEXT, false);
 
-		drawSettingRow(context, "Raio de busca", formatOneDecimal(config.searchRadius), settingsY + 32);
-		drawSettingRow(context, "Distância ataque", formatOneDecimal(config.attackDistance), settingsY + 58);
-		drawSettingRow(context, "Atraso ataque", config.attackDelayTicks + " ticks", settingsY + 84);
+		drawSettingRow(context, "Raio de Busca", formatOneDecimal(config.searchRadius) + "m", y + 34);
+		drawSettingRow(context, "Alcance de Ataque", formatOneDecimal(config.attackDistance) + "m", y + 60);
+		drawSettingRow(context, "Atraso (Delay)", config.attackDelayTicks + " tks", y + 86);
 	}
 
-	private void drawInfo(GuiGraphicsExtractor context) {
+	private void drawInfo(GuiGraphicsExtractor context, int offsetY) {
 		Minecraft client = Minecraft.getInstance();
 		MobHunterConfig config = controller.getConfig();
 		TargetMobOption selected = controller.getSelectedOption();
 		double distance = controller.getCurrentTargetDistance(client);
-		String distanceText = controller.getCurrentTargetName().equals("Nenhum") ? "-" : formatOneDecimal(distance) + " blocos";
+		String distanceText = controller.getCurrentTargetName().equals("Nenhum") ? "-" : formatOneDecimal(distance) + "m";
+		int y = infoY + offsetY;
 
-		context.fill(infoX - 2, infoY, infoX + 214, infoY + 184, PANEL_SOFT);
-		drawBorder(context, infoX - 2, infoY, 216, 184, 0xFF29384C);
+		context.fill(infoX - 4, y, infoX + 220, y + 192, PANEL_SOFT);
+		drawBorder(context, infoX - 4, y, 224, 192, PANEL_BORDER);
 
-		drawText(context, "Mob selecionado", infoX + 8, infoY + 8, TEXT);
-		drawMobIcon(context, selected, infoX + 10, infoY + 27);
-		drawText(context, selected.displayName, infoX + 34, infoY + 31, ACCENT);
+		drawText(context, "Foco Atual", infoX + 10, y + 10, TEXT, false);
+		
+		// Cartãozinho do alvo atual
+		context.fill(infoX + 10, y + 26, infoX + 210, y + 54, 0x44000000);
+		drawBorder(context, infoX + 10, y + 26, 200, 28, 0xFF45475A);
+		drawMobIcon(context, selected, infoX + 16, y + 32);
+		drawText(context, selected.displayName, infoX + 40, y + 36, ACCENT, true);
 
-		drawText(context, "Informacoes", infoX + 8, infoY + 58, TEXT);
-		drawText(context, "Alvo atual: " + controller.getCurrentTargetName(), infoX + 8, infoY + 76, MUTED);
-		drawText(context, "Distancia: " + distanceText, infoX + 8, infoY + 92, MUTED);
-		drawText(context, "Encontrados: " + controller.getFoundMobCount(), infoX + 8, infoY + 108, MUTED);
-		drawText(context, "Um clique: " + controller.getOneClickStatus(), infoX + 8, infoY + 124, config.oneClickMode ? WARNING : 0xFF7F8EA5);
-		drawText(context, "Log: " + (config.captureMobLog ? "ON" : "OFF"), infoX + 8, infoY + 140, config.captureMobLog ? GOOD : 0xFF7F8EA5);
-		drawText(context, "Prioridade: " + (config.prioritizeRareMobs ? "ON" : "OFF"), infoX + 8, infoY + 156, config.prioritizeRareMobs ? ACCENT : 0xFF7F8EA5);
+		drawText(context, "Estatísticas & Módulos", infoX + 10, y + 68, TEXT, false);
+		drawText(context, "Alvo:", infoX + 10, y + 86, MUTED, false); 
+		drawText(context, controller.getCurrentTargetName(), infoX + 60, y + 86, TEXT, false);
+		
+		drawText(context, "Distância:", infoX + 10, y + 102, MUTED, false);
+		drawText(context, distanceText, infoX + 65, y + 102, TEXT, false);
+		
+		drawText(context, "À Vista:", infoX + 10, y + 118, MUTED, false);
+		drawText(context, controller.getFoundMobCount() + " mobs", infoX + 60, y + 118, TEXT, false);
+		
+		drawText(context, "Um Clique:", infoX + 10, y + 134, MUTED, false);
+		drawText(context, controller.getOneClickStatus(), infoX + 70, y + 134, config.oneClickMode ? WARNING : MUTED, false);
+		
+		drawText(context, "Log Files:", infoX + 10, y + 150, MUTED, false);
+		drawText(context, config.captureMobLog ? "Gravando" : "Pausado", infoX + 70, y + 150, config.captureMobLog ? GOOD : MUTED, false);
+		
+		drawText(context, "Prioridade:", infoX + 10, y + 166, MUTED, false);
+		drawText(context, config.prioritizeRareMobs ? "Raros/Bosses" : "Padrão", infoX + 70, y + 166, config.prioritizeRareMobs ? ACCENT : MUTED, false);
 	}
 
 	private void drawSettingRow(GuiGraphicsExtractor context, String label, String value, int y) {
-		drawText(context, label, settingsX + 8, y, MUTED);
-		drawText(context, value, valueX, y, ACCENT);
+		drawText(context, label, settingsX + 10, y, MUTED, false);
+		drawText(context, value, valueX - 10, y, ACCENT, true);
 	}
 
 	private void drawMobIcon(GuiGraphicsExtractor context, TargetMobOption option, int x, int y) {
@@ -225,46 +302,80 @@ public class MobHunterScreen extends Screen {
 				context.itemDecorations(font, icon, x, y);
 			}
 		} catch (RuntimeException exception) {
-			// Componentes de item podem ficar indisponíveis nos primeiros frames do cliente.
+			// Seguro contra componentes indisponíveis
 		}
 	}
 
 	private void rebuildActionButtons() {
-		actionButtons.clear();
-		actionButtons.add(new ActionButton(
-			Action.TOGGLE,
-			controller.getConfig().enabled ? "Desativar" : "Ativar",
-			panelX + panelWidth - 128,
-			panelY + 17,
-			108,
-			20
-		));
+		if(actionButtons.isEmpty()) {
+			// Cria os botões apenas uma vez para manter a animação de hover fluida
+			actionButtons.add(new ActionButton(Action.TOGGLE, "", 0, 0, 120, 24));
+			
+			actionButtons.add(new ActionButton(Action.RADIUS_DOWN, "-", 0, 0, 24, 22));
+			actionButtons.add(new ActionButton(Action.RADIUS_UP, "+", 0, 0, 24, 22));
+			actionButtons.add(new ActionButton(Action.DISTANCE_DOWN, "-", 0, 0, 24, 22));
+			actionButtons.add(new ActionButton(Action.DISTANCE_UP, "+", 0, 0, 24, 22));
+			actionButtons.add(new ActionButton(Action.DELAY_DOWN, "-", 0, 0, 24, 22));
+			actionButtons.add(new ActionButton(Action.DELAY_UP, "+", 0, 0, 24, 22));
+			
+			actionButtons.add(new ActionButton(Action.ONE_CLICK, "1-Click", 0, 0, 60, 20));
+			actionButtons.add(new ActionButton(Action.LOG, "Log", 0, 0, 40, 20));
+			actionButtons.add(new ActionButton(Action.PRIORITY, "Raros", 0, 0, 50, 20));
+		}
+		
+		// Atualiza apenas as posições dinâmicas
+		actionButtons.get(0).label = controller.getConfig().enabled ? "DESATIVAR MOD" : "ATIVAR MOD";
+		actionButtons.get(0).x = panelX + panelWidth - 140;
+		actionButtons.get(0).y = panelY + 13;
 
-		int downX = valueX + 72;
-		int upX = valueX + 98;
-		actionButtons.add(new ActionButton(Action.RADIUS_DOWN, "-", downX, settingsY + 25, 22, 20));
-		actionButtons.add(new ActionButton(Action.RADIUS_UP, "+", upX, settingsY + 25, 22, 20));
-		actionButtons.add(new ActionButton(Action.DISTANCE_DOWN, "-", downX, settingsY + 51, 22, 20));
-		actionButtons.add(new ActionButton(Action.DISTANCE_UP, "+", upX, settingsY + 51, 22, 20));
-		actionButtons.add(new ActionButton(Action.DELAY_DOWN, "-", downX, settingsY + 77, 22, 20));
-		actionButtons.add(new ActionButton(Action.DELAY_UP, "+", upX, settingsY + 77, 22, 20));
-		actionButtons.add(new ActionButton(Action.ONE_CLICK, "Um clique", infoX + 108, infoY + 120, 92, 18));
-		actionButtons.add(new ActionButton(Action.LOG, "Log", infoX + 108, infoY + 138, 44, 18));
-		actionButtons.add(new ActionButton(Action.PRIORITY, "Prior.", infoX + 156, infoY + 138, 44, 18));
+		int downX = valueX + 50;
+		int upX = valueX + 80;
+		
+		actionButtons.get(1).x = downX; actionButtons.get(1).y = settingsY + 27;
+		actionButtons.get(2).x = upX;   actionButtons.get(2).y = settingsY + 27;
+		actionButtons.get(3).x = downX; actionButtons.get(3).y = settingsY + 53;
+		actionButtons.get(4).x = upX;   actionButtons.get(4).y = settingsY + 53;
+		actionButtons.get(5).x = downX; actionButtons.get(5).y = settingsY + 79;
+		actionButtons.get(6).x = upX;   actionButtons.get(6).y = settingsY + 79;
+		
+		actionButtons.get(7).x = infoX + 150; actionButtons.get(7).y = infoY + 130;
+		actionButtons.get(8).x = infoX + 170; actionButtons.get(8).y = infoY + 146;
+		actionButtons.get(9).x = infoX + 160; actionButtons.get(9).y = infoY + 162;
 	}
 
-	private void drawActionButtons(GuiGraphicsExtractor context, int mouseX, int mouseY) {
+	private void drawActionButtons(GuiGraphicsExtractor context, int offsetY) {
 		for (ActionButton button : actionButtons) {
-			boolean hovered = button.contains(mouseX, mouseY);
-			int bg = hovered ? 0xEE314158 : 0xDD243247;
-			int border = hovered ? WARNING : 0xFF596A82;
-			context.fill(button.x, button.y, button.x + button.width, button.y + button.height, bg);
-			drawBorder(context, button.x, button.y, button.width, button.height, border);
+			int btnY = button.y + offsetY;
+			
+			int baseBg = 0xFF313244;
+			int hoverBg = 0xFF45475A;
+			int border = 0xFF585B70;
+			int textColor = TEXT;
+			
+			// Estilo especial para o botão de Ativar/Desativar
+			if(button.action == Action.TOGGLE) {
+				boolean enabled = controller.getConfig().enabled;
+				baseBg = enabled ? 0xFFF38BA8 : 0xFFA6E3A1; // Vermelho se ligado (para desligar), verde se desligado
+				hoverBg = enabled ? 0xFFECA4B8 : 0xFFB4EBB0;
+				border = baseBg;
+				textColor = 0xFF11111B;
+			}
+			
+			int currentBg = lerpColor(baseBg, hoverBg, button.hoverAnim);
+			int currentBorder = lerpColor(border, WARNING, button.hoverAnim);
+
+			context.fill(button.x, btnY, button.x + button.width, btnY + button.height, currentBg);
+			drawBorder(context, button.x, btnY, button.width, button.height, currentBorder);
 
 			int textWidth = font.width(button.label);
 			int textX = button.x + (button.width - textWidth) / 2;
-			int textY = button.y + 6;
-			drawText(context, button.label, textX, textY, TEXT);
+			int textY = btnY + (button.height - 8) / 2; // Centralizado verticalmente
+			
+			if (button.action == Action.TOGGLE) {
+				drawText(context, button.label, textX, textY, textColor, true);
+			} else {
+				drawText(context, button.label, textX, textY, lerpColor(textColor, 0xFFFFFFFF, button.hoverAnim), false);
+			}
 		}
 	}
 
@@ -295,8 +406,10 @@ public class MobHunterScreen extends Screen {
 		context.fill(x + width - 1, y, x + width, y + height, color);
 	}
 
-	private void drawText(GuiGraphicsExtractor context, String text, int x, int y, int color) {
-		context.text(font, text, x + 1, y + 1, 0x99000000);
+	private void drawText(GuiGraphicsExtractor context, String text, int x, int y, int color, boolean shadow) {
+		if (shadow) {
+			context.text(font, text, x + 1, y + 1, 0x88000000); // Sombra mais suave
+		}
 		context.text(font, text, x, y, color);
 	}
 
@@ -304,58 +417,62 @@ public class MobHunterScreen extends Screen {
 		return String.format(Locale.ROOT, "%.1f", value);
 	}
 
+	/**
+	 * Interpola gradualmente entre duas cores ARGB.
+	 */
+	private int lerpColor(int color1, int color2, float delta) {
+		int a1 = (color1 >> 24) & 0xff, r1 = (color1 >> 16) & 0xff, g1 = (color1 >> 8) & 0xff, b1 = color1 & 0xff;
+		int a2 = (color2 >> 24) & 0xff, r2 = (color2 >> 16) & 0xff, g2 = (color2 >> 8) & 0xff, b2 = color2 & 0xff;
+		int a = (int)(a1 + (a2 - a1) * delta);
+		int r = (int)(r1 + (r2 - r1) * delta);
+		int g = (int)(g1 + (g2 - g1) * delta);
+		int b = (int)(b1 + (b2 - b1) * delta);
+		return (a << 24) | (r << 16) | (g << 8) | b;
+	}
+
 	private enum Action {
-		TOGGLE,
-		RADIUS_DOWN,
-		RADIUS_UP,
-		DISTANCE_DOWN,
-		DISTANCE_UP,
-		DELAY_DOWN,
-		DELAY_UP,
-		ONE_CLICK,
-		LOG,
-		PRIORITY
+		TOGGLE, RADIUS_DOWN, RADIUS_UP, DISTANCE_DOWN, DISTANCE_UP, DELAY_DOWN, DELAY_UP, ONE_CLICK, LOG, PRIORITY
 	}
 
 	private static class ActionButton {
 		private final Action action;
-		private final String label;
-		private final int x;
-		private final int y;
-		private final int width;
-		private final int height;
+		private String label;
+		private int x, y, width, height;
+		private float hoverAnim = 0f;
 
 		private ActionButton(Action action, String label, int x, int y, int width, int height) {
 			this.action = action;
 			this.label = label;
-			this.x = x;
-			this.y = y;
-			this.width = width;
-			this.height = height;
+			this.x = x; this.y = y; this.width = width; this.height = height;
 		}
 
 		private boolean contains(double mouseX, double mouseY) {
 			return mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + height;
+		}
+		
+		private void updateHover(boolean isHovered) {
+			if (isHovered) hoverAnim = Math.min(1f, hoverAnim + 0.15f);
+			else hoverAnim = Math.max(0f, hoverAnim - 0.1f);
 		}
 	}
 
 	private static class MobCard {
 		private final TargetMobOption option;
-		private final int x;
-		private final int y;
-		private final int width;
-		private final int height;
+		private int x, y, width, height;
+		private float hoverAnim = 0f;
 
 		private MobCard(TargetMobOption option, int x, int y, int width, int height) {
 			this.option = option;
-			this.x = x;
-			this.y = y;
-			this.width = width;
-			this.height = height;
+			this.x = x; this.y = y; this.width = width; this.height = height;
 		}
 
 		private boolean contains(double mouseX, double mouseY) {
 			return mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + height;
+		}
+		
+		private void updateHover(boolean isHovered) {
+			if (isHovered) hoverAnim = Math.min(1f, hoverAnim + 0.15f);
+			else hoverAnim = Math.max(0f, hoverAnim - 0.1f);
 		}
 	}
 }
