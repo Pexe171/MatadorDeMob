@@ -25,6 +25,8 @@ public class MobHunterConfig {
 	public double oneClickSwitchHealth = 100.0D;
 	public boolean captureMobLog = true;
 	public boolean prioritizeRareMobs = true;
+	public int panelOffsetX = 0;
+	public int panelOffsetY = 0;
 
 	public static MobHunterConfig load() {
 		if (Files.exists(CONFIG_PATH)) {
@@ -66,6 +68,8 @@ public class MobHunterConfig {
 		attackDistance = clamp(attackDistance, 1.0D, 6.0D);
 		oneClickSwitchHealth = clamp(oneClickSwitchHealth, 1.0D, 1000.0D);
 		attackDelayTicks = Math.max(1, Math.min(attackDelayTicks, 40));
+		panelOffsetX = Math.max(-10000, Math.min(panelOffsetX, 10000));
+		panelOffsetY = Math.max(-10000, Math.min(panelOffsetY, 10000));
 	}
 
 	private static double clamp(double value, double min, double max) {

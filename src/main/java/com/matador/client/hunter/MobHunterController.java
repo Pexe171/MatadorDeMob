@@ -24,6 +24,7 @@ import java.util.UUID;
 
 public class MobHunterController {
     private static final Path MOB_LOG_PATH = FabricLoader.getInstance().getConfigDir().resolve("matador-mob-hunter-seen-mobs.log");
+    private static final int POST_KILL_TARGET_DELAY_TICKS = 60;
     private static MobHunterController instance;
     private final MobHunterConfig config;
     private final Set<String> loggedMobKeys = new HashSet<>();
@@ -33,6 +34,7 @@ public class MobHunterController {
     private LivingEntity currentTarget;
     private int foundMobCount;
     private int attackCooldownTicks;
+    private int targetSwitchCooldownTicks;
     private boolean controllingMovement;
     private int oneClickTargetId = -1;
     private int ticksSinceLastTargetChange = 0; // Previne ataques instantâneos ao trocar de alvo
@@ -68,6 +70,9 @@ public class MobHunterController {
         if (attackCooldownTicks > 0) {
             attackCooldownTicks--;
         }
+        if (targetSwitchCooldownTicks > 0) {
+            targetSwitchCooldownTicks--;
+        }
 
         ticksSinceLastTargetChange++;
 
@@ -75,7 +80,19 @@ public class MobHunterController {
             stopMoving(client);
             clearTarget();
             foundMobCount = 0;
+            targetSwitchCooldownTicks = 0;
             completedOneClickTargets.clear();
+            return;
+        }
+
+        if (currentTarget != null && isFinishedTarget(currentTarget)) {
+            startPostKillTargetDelay(client, currentTarget);
+            return;
+        }
+
+        if (targetSwitchCooldownTicks > 0) {
+            stopMoving(client);
+            foundMobCount = 0;
             return;
         }
 
@@ -138,6 +155,7 @@ public class MobHunterController {
             stopMoving(client);
             clearTarget();
             oneClickTargetId = -1;
+            targetSwitchCooldownTicks = 0;
             completedOneClickTargets.clear();
         }
         config.save();
@@ -150,6 +168,7 @@ public class MobHunterController {
     public void setTargetMob(TargetMobOption option, Minecraft client) {
         config.targetMobId = option.entityId;
         config.save();
+        targetSwitchCooldownTicks = 0;
         clearTarget();
         oneClickTargetId = -1;
         completedOneClickTargets.clear();
@@ -163,6 +182,11 @@ public class MobHunterController {
 
     public void refreshTarget(Minecraft client) {
         if (client.level == null || client.player == null) {
+            currentTarget = null;
+            foundMobCount = 0;
+            return;
+        }
+        if (targetSwitchCooldownTicks > 0) {
             currentTarget = null;
             foundMobCount = 0;
             return;
@@ -252,6 +276,13 @@ public class MobHunterController {
         return foundMobCount;
     }
 
+    public String getTargetSwitchCooldownStatus() {
+        if (targetSwitchCooldownTicks <= 0) {
+            return "Pronto";
+        }
+        return String.format(Locale.ROOT, "%.1fs", targetSwitchCooldownTicks / 20.0D);
+    }
+
     public String getOneClickStatus() {
         if (!config.oneClickMode) {
             return "OFF";
@@ -262,6 +293,7 @@ public class MobHunterController {
     public void toggleOneClickMode(Minecraft client) {
         config.oneClickMode = !config.oneClickMode;
         oneClickTargetId = -1;
+        targetSwitchCooldownTicks = 0;
         completedOneClickTargets.clear();
         stopMoving(client);
         config.save();
@@ -283,6 +315,20 @@ public class MobHunterController {
             config.targetMobId = TargetMobOption.defaultOption().entityId;
             config.save();
         }
+    }
+
+    private boolean isFinishedTarget(LivingEntity target) {
+        return !target.isAlive() || target.isRemoved();
+    }
+
+    private void startPostKillTargetDelay(Minecraft client, LivingEntity finishedTarget) {
+        if (config.enabled) {
+            targetSwitchCooldownTicks = POST_KILL_TARGET_DELAY_TICKS;
+            logMob(finishedTarget, "TARGET_DONE_WAIT_3S", getCurrentTargetDistance(client));
+        }
+        stopMoving(client);
+        clearTarget();
+        oneClickTargetId = -1;
     }
 
     private void walkToTarget(Minecraft client) {
